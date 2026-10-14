@@ -208,18 +208,26 @@ let appCheckReady = false;
 try {
   const app = firebase.initializeApp(firebaseConfig);
   const appCheck = firebase.appCheck(app);
-  appCheck.activate(RECAPTCHA_SITE_KEY, true).then(() => {
-    appCheckReady = true;
-    console.log("App Check 已啟動");
-    const el = document.getElementById('cloudStatus');
-    if (el && el.textContent.includes('未連線')) {
-      el.textContent = '☁️ 雲端：已啟用 App Check';
-      el.style.color = '#1abc9c';
+  appCheck.activate(RECAPTCHA_SITE_KEY, true);
+  // compat SDK 的 activate 不回傳 Promise，用 getToken 驗證
+  appCheck.getToken().then(result => {
+    if (result && result.token) {
+      appCheckReady = true;
+      console.log("App Check 已啟動，權杖長度:", result.token.length);
+      const el = document.getElementById('cloudStatus');
+      if (el && el.textContent.includes('未連線')) {
+        el.textContent = '☁️ 雲端：已啟用 App Check';
+        el.style.color = '#1abc9c';
+      }
+    } else {
+      console.error("App Check: getToken 回傳空值");
+      const el = document.getElementById('cloudStatus');
+      if (el) { el.textContent = '☁️ App Check 權杖取得失敗'; el.style.color = '#e74c3c'; }
     }
   }).catch(err => {
-    console.error("App Check 啟動失敗:", err);
+    console.error("App Check 權杖取得失敗:", err);
     const el = document.getElementById('cloudStatus');
-    if (el) { el.textContent = '☁️ App Check 啟動失敗'; el.style.color = '#e74c3c'; }
+    if (el) { el.textContent = '☁️ App Check 權杖取得失敗'; el.style.color = '#e74c3c'; }
   });
 } catch(e) { console.error("Firebase 初始化失敗:", e); }
 
