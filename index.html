@@ -405,6 +405,20 @@ window.getAppCheckToken = getAppCheckToken;
         await applySyncDirection(remote);
     }
 
+    // 每 5 分鐘自動雲端同步（避免忘記按按鈕）
+    const AUTO_SYNC_MS = 5 * 60 * 1000;
+    setInterval(async () => {
+        if (!cloudConfigured() || cloudBusy) return;
+        // 正在編輯彈窗中時跳過，下一輪再同步
+        const modals = ['editModal', 'statsModal', 'progressModal'];
+        if (modals.some(id => {
+            const m = document.getElementById(id);
+            return m && m.style.display === 'block';
+        })) return;
+        const remote = await cloudFetch();
+        await applySyncDirection(remote);
+    }, AUTO_SYNC_MS);
+
     document.addEventListener('DOMContentLoaded', () => { renderCalendar(); autoCloudSync(); });
 
     function getClassColor(cid) { return classColors[cid] || '#e0e0e0'; }
