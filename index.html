@@ -192,9 +192,18 @@
     </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app-check-compat.js"></script>
-<script>
+<script type="importmap">
+{
+  "imports": {
+    "firebase/app": "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js",
+    "firebase/app-check": "https://www.gstatic.com/firebasejs/11.0.0/firebase-app-check.js"
+  }
+}
+</script>
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken } from "firebase/app-check";
+
 // ===== Firebase App Check 設定（需填入你的值）=====
 const firebaseConfig = {
   apiKey: "AIzaSyB7grBE6FaFKd2TfzJ-A4pbwmFEc5ZXJMs",
@@ -207,23 +216,20 @@ const RECAPTCHA_SITE_KEY = "6LcBKO4tAAAAAGEpmMOx-0Y_FHru8UidLZJ_fxW4";
 let appCheckReady = false;
 
 try {
-  const app = firebase.initializeApp(firebaseConfig);
-  const appCheck = firebase.appCheck(app);
-  appCheck.activate(RECAPTCHA_SITE_KEY, true);
-  // compat SDK 的 activate 不回傳 Promise，用 getToken 驗證
-  appCheck.getToken().then(result => {
+  const app = initializeApp(firebaseConfig);
+  const appCheckInstance = initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
+    isTokenAutoRefreshEnabled: true
+  });
+  window.appCheckInstance = appCheckInstance;
+  getToken(appCheckInstance).then(result => {
     if (result && result.token) {
-      appCheckReady = true;
       console.log("App Check 已啟動，權杖長度:", result.token.length);
       const el = document.getElementById('cloudStatus');
       if (el && el.textContent.includes('未連線')) {
         el.textContent = '☁️ 雲端：已啟用 App Check';
         el.style.color = '#1abc9c';
       }
-    } else {
-      console.error("App Check: getToken 回傳空值");
-      const el = document.getElementById('cloudStatus');
-      if (el) { el.textContent = '☁️ App Check 權杖取得失敗'; el.style.color = '#e74c3c'; }
     }
   }).catch(err => {
     console.error("App Check 權杖取得失敗:", err);
@@ -234,12 +240,13 @@ try {
 
 // 取得 App Check token（給 fetch 用）
 async function getAppCheckToken() {
-  if (!appCheckReady) return null;
+  if (!window.appCheckInstance) return null;
   try {
-    const result = await firebase.appCheck().getToken();
+    const result = await getToken(window.appCheckInstance);
     return result ? result.token : null;
-  } catch(e) { return null; }
+  } catch(e) { console.error('getToken 失敗:', e.message.substring(0, 100)); return null; }
 }
+window.getAppCheckToken = getAppCheckToken;
 </script>
 
 <script>
